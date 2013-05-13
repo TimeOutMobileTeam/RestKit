@@ -20,6 +20,7 @@
 
 #import "RKObjectRequestOperation.h"
 #import "RKResponseMapperOperation.h"
+#import "RKResponseDescriptor.h"
 #import "RKMIMETypeSerialization.h"
 #import "RKHTTPUtilities.h"
 #import "RKLog.h"
@@ -37,6 +38,7 @@
 
 NSString * const RKObjectRequestOperationDidStartNotification = @"RKObjectRequestOperationDidStartNotification";
 NSString * const RKObjectRequestOperationDidFinishNotification = @"RKObjectRequestOperationDidFinishNotification";
+NSString * const RKResponseHasBeenMappedCacheUserInfoKey = @"RKResponseHasBeenMapped";
 
 static void RKIncrementNetworkActivityIndicator()
 {
@@ -57,15 +59,16 @@ static inline NSString *RKDescriptionForRequest(NSURLRequest *request)
     return [NSString stringWithFormat:@"%@ '%@'", request.HTTPMethod, [request.URL absoluteString]];
 }
 
-static NSIndexSet *RKObjectRequestOperationAcceptableStatusCodes()
+static NSIndexSet *RKAcceptableStatusCodesFromResponseDescriptors(NSArray *responseDescriptors)
 {
-    static NSMutableIndexSet *statusCodes = nil;
-    if (! statusCodes) {
-        statusCodes = [NSMutableIndexSet indexSet];
-        [statusCodes addIndexesInRange:RKStatusCodeRangeForClass(RKStatusCodeClassSuccessful)];
-        [statusCodes addIndexesInRange:RKStatusCodeRangeForClass(RKStatusCodeClassClientError)];
-    }
-    return statusCodes;
+    // If there are no response descriptors or any descriptor matches any status code (expressed by `statusCodes` == `nil`) then we want to accept anything
+    if ([responseDescriptors count] == 0 || [[responseDescriptors valueForKey:@"statusCodes"] containsObject:[NSNull null]]) return nil;
+    
+    NSMutableIndexSet *acceptableStatusCodes = [NSMutableIndexSet indexSet];
+    [responseDescriptors enumerateObjectsUsingBlock:^(RKResponseDescriptor *responseDescriptor, NSUInteger idx, BOOL *stop) {
+        [acceptableStatusCodes addIndexes:responseDescriptor.statusCodes];
+    }];
+    return acceptableStatusCodes;
 }
 
 static NSString *RKStringForStateOfObjectRequestOperation(RKObjectRequestOperation *operation)
@@ -117,12 +120,19 @@ static NSString *RKStringDescribingURLResponseWithData(NSURLResponse *response, 
     return responseMappingQueue;
 }
 
++ (BOOL)canProcessRequest:(NSURLRequest *)request
+{
+    return YES;
+}
+
 - (void)dealloc
 {
 #if !OS_OBJECT_USE_OBJC
-    if(_failureCallbackQueue) dispatch_release(_failureCallbackQueue);
-    if(_successCallbackQueue) dispatch_release(_successCallbackQueue);
+    if (_failureCallbackQueue) dispatch_release(_failureCallbackQueue);
+    if (_successCallbackQueue) dispatch_release(_successCallbackQueue);
 #endif
+    _failureCallbackQueue = NULL;
+    _successCallbackQueue = NULL;
 }
 
 // Designated initializer
@@ -136,7 +146,7 @@ static NSString *RKStringDescribingURLResponseWithData(NSURLResponse *response, 
         self.responseDescriptors = responseDescriptors;
         self.HTTPRequestOperation = requestOperation;
         self.HTTPRequestOperation.acceptableContentTypes = [RKMIMETypeSerialization registeredMIMETypes];
-        self.HTTPRequestOperation.acceptableStatusCodes = RKObjectRequestOperationAcceptableStatusCodes();
+        self.HTTPRequestOperation.acceptableStatusCodes = RKAcceptableStatusCodesFromResponseDescriptors(responseDescriptors);
     }
     
     return self;
@@ -246,10 +256,12 @@ static NSString *RKStringDescribingURLResponseWithData(NSURLResponse *response, 
 - (RKMappingResult *)performMappingOnResponse:(NSError **)error
 {
     // Spin up an RKObjectResponseMapperOperation
-    self.responseMapperOperation = [[RKObjectResponseMapperOperation alloc] initWithResponse:self.HTTPRequestOperation.response
-                                                                                        data:self.HTTPRequestOperation.responseData
-                                                                         responseDescriptors:self.responseDescriptors];
+    self.responseMapperOperation = [[RKObjectResponseMapperOperation alloc] initWithRequest:self.HTTPRequestOperation.request
+                                                                                   response:self.HTTPRequestOperation.response
+                                                                                       data:self.HTTPRequestOperation.responseData
+                                                                        responseDescriptors:self.responseDescriptors];
     self.responseMapperOperation.targetObject = self.targetObject;
+    self.responseMapperOperation.mappingMetadata = self.mappingMetadata;
     self.responseMapperOperation.mapperDelegate = self;
     [self.responseMapperOperation setQueuePriority:[self queuePriority]];
     [self.responseMapperOperation setWillMapDeserializedResponseBlock:self.willMapDeserializedResponseBlock];
@@ -304,8 +316,21 @@ static NSString *RKStringDescribingURLResponseWithData(NSURLResponse *response, 
     }
     self.mappingResult = mappingResult;
     [self willFinish];
-    
-    if (self.error) self.mappingResult = nil;
+        
+    if (self.error) {
+        self.mappingResult = nil;
+    } else {
+        NSCachedURLResponse *cachedResponse = [[NSURLCache sharedURLCache] cachedResponseForRequest:self.HTTPRequestOperation.request];
+        if (cachedResponse) {
+            // We're all done mapping this request. Now we set a flag on the cache entry's userInfo dictionary to indicate that the request
+            // corresponding to the cache entry completed successfully, and we can reliably skip mapping if a subsequent request results
+            // in the use of this cachedResponse.
+            NSMutableDictionary *userInfo = cachedResponse.userInfo ? [cachedResponse.userInfo mutableCopy] : [NSMutableDictionary dictionary];
+            [userInfo setObject:@YES forKey:RKResponseHasBeenMappedCacheUserInfoKey];
+            NSCachedURLResponse *newCachedResponse = [[NSCachedURLResponse alloc] initWithResponse:cachedResponse.response data:cachedResponse.data userInfo:userInfo storagePolicy:cachedResponse.storagePolicy];
+            [[NSURLCache sharedURLCache] storeCachedResponse:newCachedResponse forRequest:self.HTTPRequestOperation.request];
+        }
+    }
 }
 
 - (void)main
@@ -325,5 +350,18 @@ static NSString *RKStringDescribingURLResponseWithData(NSURLResponse *response, 
             self.HTTPRequestOperation.request, RKStringDescribingURLResponseWithData(self.HTTPRequestOperation.response, self.HTTPRequestOperation.responseData)];
 }
 
+#pragma mark - NSCopying
+
+- (id)copyWithZone:(NSZone *)zone {
+    RKObjectRequestOperation *operation = [(RKObjectRequestOperation *)[[self class] allocWithZone:zone] initWithHTTPRequestOperation:[self.HTTPRequestOperation copyWithZone:zone] responseDescriptors:self.responseDescriptors];
+    operation.targetObject = self.targetObject;
+    operation.mappingMetadata = self.mappingMetadata;
+    operation.successCallbackQueue = self.successCallbackQueue;
+    operation.failureCallbackQueue = self.failureCallbackQueue;
+    operation.willMapDeserializedResponseBlock = self.willMapDeserializedResponseBlock;
+    operation.completionBlock = self.completionBlock;
+    
+    return operation;
+}
 
 @end

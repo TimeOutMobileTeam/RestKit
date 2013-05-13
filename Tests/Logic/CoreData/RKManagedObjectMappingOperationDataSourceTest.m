@@ -17,12 +17,15 @@
 #import "RKHuman.h"
 #import "RKChild.h"
 #import "RKParent.h"
-//#import "RKBenchmark.h"
+#import "RKBenchmark.h"
 
 @interface RKManagedObjectMappingOperationDataSourceTest : RKTestCase
 
 @end
 
+/**
+ NOTE: You need to take care that you allow the operationQueue to finish before the next test begins execution, else the Core Data tear down can result in intermittent test crashes.
+ */
 @implementation RKManagedObjectMappingOperationDataSourceTest
 
 - (void)setUp
@@ -41,7 +44,7 @@
     RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
                                                                                                                                       cache:managedObjectStore.managedObjectCache];
     RKObjectMapping *mapping = [RKObjectMapping mappingForClass:[RKMappableObject class]];
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:[NSDictionary dictionary] withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:[NSDictionary dictionary] withMapping:mapping inRelationship:nil];
     assertThat(object, isNot(nilValue()));
     assertThat([object class], is(equalTo([RKMappableObject class])));
 }
@@ -55,7 +58,7 @@
     mapping.identificationAttributes = @[ @"railsID" ];
     
     NSDictionary *data = [NSDictionary dictionary];
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:data withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:data withMapping:mapping inRelationship:nil];
     assertThat(object, isNot(nilValue()));
     assertThat(object, is(instanceOf([RKHuman class])));
 }
@@ -68,7 +71,7 @@
     RKEntityMapping *mapping = [RKEntityMapping mappingForEntityForName:@"Human" inManagedObjectStore:managedObjectStore];
     
     NSDictionary *data = [NSDictionary dictionary];    
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:data withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:data withMapping:mapping inRelationship:nil];
     assertThat(object, isNot(nilValue()));
     assertThat(object, is(instanceOf([RKHuman class])));
 }
@@ -83,7 +86,7 @@
     [mapping addPropertyMapping:[RKAttributeMapping attributeMappingFromKeyPath:@"id" toKeyPath:@"railsID"]];
     
     NSDictionary *data = [NSDictionary dictionaryWithObject:[NSNull null] forKey:@"id"];    
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:data withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:data withMapping:mapping inRelationship:nil];
     assertThat(object, isNot(nilValue()));
     assertThat(object, is(instanceOf([RKHuman class])));
 }
@@ -110,7 +113,7 @@
     RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
                                                                                                                                       cache:managedObjectStore.managedObjectCache];
     NSDictionary *data = [NSDictionary dictionaryWithObject:[NSNumber numberWithInt:123] forKey:@"id"];
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:data withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:data withMapping:mapping inRelationship:nil];
     expect(object).notTo.beNil();
     expect(object).to.equal(human);
 }
@@ -137,7 +140,7 @@
     
     RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
                                                                                                                                       cache:managedObjectStore.managedObjectCache];
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:nestedDictionary withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:nestedDictionary withMapping:mapping inRelationship:nil];
     expect(object).notTo.beNil();
     expect(object).to.equal(human);
 }
@@ -164,7 +167,7 @@
     NSDictionary *representation = @{ @"monkey": @{ @"created_at": createdAtString } };
     RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
                                                                                                                                       cache:managedObjectStore.managedObjectCache];
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping inRelationship:nil];
     expect(object).notTo.beNil();
     expect(object).to.equal(human);
 }
@@ -192,7 +195,7 @@
     NSDictionary *data = [NSDictionary dictionaryWithObject:[NSNumber numberWithInt:123] forKey:@"id"];    
     RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
                                                                                                                                       cache:managedObjectStore.managedObjectCache];    
-    NSManagedObject *object = [dataSource mappingOperation:nil targetObjectForRepresentation:data withMapping:mapping];
+    NSManagedObject *object = [dataSource mappingOperation:nil targetObjectForRepresentation:data withMapping:mapping inRelationship:nil];
     expect([object managedObjectContext]).to.equal(managedObjectStore.persistentStoreManagedObjectContext);
     expect(object).notTo.beNil();
     expect(object).to.equal(human);
@@ -221,7 +224,7 @@
     
     RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
                                                                                                                                       cache:managedObjectStore.managedObjectCache];
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:nestedDictionary withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:nestedDictionary withMapping:mapping inRelationship:nil];
     assertThat(object, isNot(nilValue()));
     assertThat(object, is(equalTo(human)));
 }
@@ -248,7 +251,7 @@
     NSDictionary *representation = @{ @"monkey": @{ @"created_at": createdAtString } };
     RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
                                                                                                                                       cache:managedObjectStore.managedObjectCache];
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping inRelationship:nil];
     expect(object).notTo.beNil();
     expect(object).to.equal(human);
 }
@@ -279,7 +282,7 @@
     
     RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
                                                                                                                                       cache:managedObjectStore.managedObjectCache];
-    RKHuman *object = [dataSource mappingOperation:nil targetObjectForRepresentation:nestedDictionary withMapping:mapping];
+    RKHuman *object = [dataSource mappingOperation:nil targetObjectForRepresentation:nestedDictionary withMapping:mapping inRelationship:nil];
     assertThat(object, isNot(nilValue()));
     assertThat(object, is(equalTo(human)));
     assertThatInteger([object.railsID integerValue], is(equalToInteger(12345)));
@@ -333,7 +336,7 @@
     
     RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
                                                                                                                                       cache:managedObjectStore.managedObjectCache];
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping inRelationship:nil];
     assertThat(object, isNot(nilValue()));
     assertThat(object, is(equalTo(human)));
 }
@@ -364,7 +367,7 @@
     
     RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
                                                                                                                                       cache:managedObjectStore.managedObjectCache];
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping inRelationship:nil];
     assertThat(object, isNot(nilValue()));
     assertThat(object, is(equalTo(human)));
 }
@@ -391,7 +394,34 @@
     RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
                                                                                                                                       cache:managedObjectStore.managedObjectCache];
     NSDictionary *representation = @{ @"Blake": @{ @"id": @"12345" } };
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping inRelationship:nil];
+    expect(object).notTo.beNil();
+    expect(object).to.equal(human);
+}
+
+- (void)testRetrievalOfTargetObjectWithDynamicNestingKeyMappingInWhichIdentifierAttributeIsNotTheDynamicNestingKey
+{
+    RKManagedObjectStore *managedObjectStore = [RKTestFactory managedObjectStore];
+    managedObjectStore.managedObjectCache = [RKFetchRequestManagedObjectCache new];
+    RKEntityMapping *mapping = [RKEntityMapping mappingForEntityForName:@"Human" inManagedObjectStore:managedObjectStore];
+    mapping.identificationAttributes = @[ @"railsID" ];
+    [mapping addAttributeMappingFromKeyOfRepresentationToAttribute:@"name"];
+    [mapping addAttributeMappingsFromDictionary:@{ @"(name).id": @"railsID" }];
+    
+    RKHuman *human = [NSEntityDescription insertNewObjectForEntityForName:@"Human" inManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext];
+    human.name = @"Blake";
+    human.railsID = @(12345);
+    [managedObjectStore.persistentStoreManagedObjectContext save:nil];
+    
+    NSError *error = nil;
+    NSFetchRequest *fetchRequest = [NSFetchRequest fetchRequestWithEntityName:@"Human"];
+    NSUInteger count = [managedObjectStore.persistentStoreManagedObjectContext countForFetchRequest:fetchRequest error:&error];
+    expect(count).to.beGreaterThan(0);
+    
+    RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
+                                                                                                                                      cache:managedObjectStore.managedObjectCache];
+    NSDictionary *representation = @{ @"Blake": @{ @"id": @"12345" } };
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping inRelationship:nil];
     expect(object).notTo.beNil();
     expect(object).to.equal(human);
 }
@@ -418,7 +448,7 @@
     RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
                                                                                                                                       cache:managedObjectStore.managedObjectCache];
     NSDictionary *representation = @{ @"Blake": @{ @"id": @"12345" } };
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping inRelationship:nil];
     expect(object).notTo.beNil();
     expect(object).to.equal(human);
 }
@@ -445,7 +475,7 @@
     RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
                                                                                                                                       cache:managedObjectStore.managedObjectCache];
     NSDictionary *representation = @{ @"Blake": @{ @"id": @"12345" } };
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:representation withMapping:mapping inRelationship:nil];
     expect(object).notTo.beNil();
     expect(object).to.equal(human);
 }
@@ -479,7 +509,7 @@
     RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
                                                                                                                                       cache:managedObjectStore.managedObjectCache];
     NSDictionary *data = [NSDictionary dictionaryWithObject:[NSNumber numberWithInt:123] forKey:@"id"];
-    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:data withMapping:mapping];
+    id object = [dataSource mappingOperation:nil targetObjectForRepresentation:data withMapping:mapping inRelationship:nil];
     expect(object).notTo.beNil();
     expect(object).to.equal(human1);
 }
@@ -546,6 +576,8 @@
     assertThatBool(success, is(equalToBool(YES)));
     assertThat(human.favoriteCat, isNot(nilValue()));
     assertThat(human.favoriteCat.name, is(equalTo(@"Asia")));
+    
+    [mappingOperationDataSource.operationQueue waitUntilAllOperationsAreFinished];
 }
 
 - (void)testShouldConnectRelationshipsByPrimaryKeyReverse
@@ -879,6 +911,8 @@
     assertThat([[parent.children anyObject] parents], isNot(nilValue()));
     assertThatBool([[[parent.children anyObject] parents] containsObject:parent], is(equalToBool(YES)));
     assertThatUnsignedInteger([[[parent.children anyObject] parents] count], is(equalToInt(1)));
+    
+    [mappingOperationDataSource.operationQueue waitUntilAllOperationsAreFinished];
 }
 
 - (void)testShouldConnectRelationshipsByPrimaryKeyRegardlessOfOrder
@@ -1109,77 +1143,283 @@
     expect([human isDeleted]).to.equal(YES);
 }
 
-// TODO: Import bencharmk utility somehow...
-//- (void)testMappingAPayloadContainingRepeatedObjectsPerformsAcceptablyWithFetchRequestMappingCache
-//{
-//    RKManagedObjectStore *managedObjectStore = [RKTestFactory managedObjectStore];
-//    RKFetchRequestManagedObjectCache *managedObjectCache = [RKFetchRequestManagedObjectCache new];
-//    RKManagedObjectMappingOperationDataSource *mappingOperationDataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
-//                                                                                                                                                      cache:managedObjectCache];
-//    managedObjectStore.managedObjectCache = managedObjectCache;
-//
-//    RKEntityMapping *childMapping = [RKEntityMapping mappingForEntityForName:@"Child" inManagedObjectStore:managedObjectStore];
-//    childMapping.identificationAttributes = @[ @"childID" ];
-//    [childMapping addAttributeMappingsFromArray:@[@"name", @"childID"]];
-//
-//    RKEntityMapping *parentMapping = [RKEntityMapping mappingForEntityForName:@"Parent" inManagedObjectStore:managedObjectStore];
-//    [parentMapping addAttributeMappingsFromArray:@[@"parentID", @"name"]];
-//    parentMapping.identificationAttributes = @[ @"parentID" ];
-//    [parentMapping addRelationshipMappingWithSourceKeyPath:@"children" mapping:childMapping];
-//
-//
-//    NSDictionary *mappingsDictionary = @{ @"parents": parentMapping };
-//    NSDictionary *JSON = [RKTestFixture parsedObjectWithContentsOfFixture:@"benchmark_parents_and_children.json"];
-//    RKMapperOperation *mapper = [[RKMapperOperation alloc] initWithObject:JSON mappingsDictionary:mappingsDictionary];
-//    mapper.mappingOperationDataSource = mappingOperationDataSource;
-//
-//    RKLogConfigureByName("RestKit/ObjectMapping", RKLogLevelOff);
-//    RKLogConfigureByName("RestKit/CoreData", RKLogLevelOff);
-//
-//    [RKBenchmark report:@"Mapping with Fetch Request Cache" executionBlock:^{
-//        for (NSUInteger i = 0; i < 50; i++) {
-//            [mapper performMapping];
-//        }
-//    }];
-//    NSUInteger parentCount = [managedObjectStore.persistentStoreManagedObjectContext countForEntityForName:@"Parent" predicate:nil error:nil];
-//    NSUInteger childrenCount = [managedObjectStore.persistentStoreManagedObjectContext countForEntityForName:@"Child" predicate:nil error:nil];
-//    assertThatInteger(parentCount, is(equalToInteger(25)));
-//    assertThatInteger(childrenCount, is(equalToInteger(51)));
-//}
-//
-//- (void)testMappingAPayloadContainingRepeatedObjectsPerformsAcceptablyWithInMemoryMappingCache
-//{
-//    RKManagedObjectStore *managedObjectStore = [RKTestFactory managedObjectStore];
-//    RKInMemoryManagedObjectCache *managedObjectCache = [[RKInMemoryManagedObjectCache alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext];
-//    RKManagedObjectMappingOperationDataSource *mappingOperationDataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
-//                                                                                                                                                      cache:managedObjectCache];
-//    managedObjectStore.managedObjectCache = managedObjectCache;
-//
-//    RKEntityMapping *childMapping = [RKEntityMapping mappingForEntityForName:@"Child" inManagedObjectStore:managedObjectStore];
-//    childMapping.identificationAttributes = @[ @"childID" ];
-//    [childMapping addAttributeMappingsFromArray:@[@"name", @"childID"]];
-//
-//    RKEntityMapping *parentMapping = [RKEntityMapping mappingForEntityForName:@"Parent" inManagedObjectStore:managedObjectStore];
-//    [parentMapping addAttributeMappingsFromArray:@[@"parentID", @"name"]];
-//    parentMapping.identificationAttributes = @[ @"parentID" ];
-//    [parentMapping addRelationshipMappingWithSourceKeyPath:@"children" mapping:childMapping];
-//
-//    NSDictionary *mappingsDictionary = @{ @"parents": parentMapping };
-//    NSDictionary *JSON = [RKTestFixture parsedObjectWithContentsOfFixture:@"benchmark_parents_and_children.json"];
-//    RKMapperOperation *mapper = [[RKMapperOperation alloc] initWithObject:JSON mappingsDictionary:mappingsDictionary];
-//    mapper.mappingOperationDataSource = mappingOperationDataSource;
-//    RKLogConfigureByName("RestKit/ObjectMapping", RKLogLevelOff);
-//    RKLogConfigureByName("RestKit/CoreData", RKLogLevelOff);
-//
-//    [RKBenchmark report:@"Mapping with In Memory Cache" executionBlock:^{
-//        for (NSUInteger i = 0; i < 50; i++) {
-//            [mapper performMapping];
-//        }
-//    }];
-//    NSUInteger parentCount = [managedObjectStore.persistentStoreManagedObjectContext countForEntityForName:@"Parent" predicate:nil error:nil];
-//    NSUInteger childrenCount = [managedObjectStore.persistentStoreManagedObjectContext countForEntityForName:@"Child" predicate:nil error:nil];
-//    assertThatInteger(parentCount, is(equalToInteger(25)));
-//    assertThatInteger(childrenCount, is(equalToInteger(51)));
-//}
+- (void)testMappingAPayloadContainingRepeatedObjectsPerformsAcceptablyWithFetchRequestMappingCache
+{
+    RKManagedObjectStore *managedObjectStore = [RKTestFactory managedObjectStore];
+    RKFetchRequestManagedObjectCache *managedObjectCache = [RKFetchRequestManagedObjectCache new];
+    RKManagedObjectMappingOperationDataSource *mappingOperationDataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
+                                                                                                                                                      cache:managedObjectCache];
+    managedObjectStore.managedObjectCache = managedObjectCache;
+
+    RKEntityMapping *childMapping = [RKEntityMapping mappingForEntityForName:@"Child" inManagedObjectStore:managedObjectStore];
+    childMapping.identificationAttributes = @[ @"childID" ];
+    [childMapping addAttributeMappingsFromArray:@[@"name", @"childID"]];
+
+    RKEntityMapping *parentMapping = [RKEntityMapping mappingForEntityForName:@"Parent" inManagedObjectStore:managedObjectStore];
+    [parentMapping addAttributeMappingsFromArray:@[@"parentID", @"name"]];
+    parentMapping.identificationAttributes = @[ @"parentID" ];
+    [parentMapping addRelationshipMappingWithSourceKeyPath:@"children" mapping:childMapping];
+
+
+    NSDictionary *mappingsDictionary = @{ @"parents": parentMapping };
+    NSDictionary *JSON = [RKTestFixture parsedObjectWithContentsOfFixture:@"benchmark_parents_and_children.json"];
+    RKMapperOperation *mapper = [[RKMapperOperation alloc] initWithRepresentation:JSON mappingsDictionary:mappingsDictionary];
+    mapper.mappingOperationDataSource = mappingOperationDataSource;
+
+    RKLogConfigureByName("RestKit/ObjectMapping", RKLogLevelOff);
+    RKLogConfigureByName("RestKit/CoreData", RKLogLevelOff);
+
+    [RKBenchmark report:@"Mapping with Fetch Request Cache" executionBlock:^{
+        for (NSUInteger i = 0; i < 50; i++) {
+            [mapper start];
+        }
+    }];
+    NSUInteger parentCount = [managedObjectStore.persistentStoreManagedObjectContext countForEntityForName:@"Parent" predicate:nil error:nil];
+    NSUInteger childrenCount = [managedObjectStore.persistentStoreManagedObjectContext countForEntityForName:@"Child" predicate:nil error:nil];
+    assertThatInteger(parentCount, is(equalToInteger(25)));
+    assertThatInteger(childrenCount, is(equalToInteger(51)));
+}
+
+- (void)testMappingAPayloadContainingRepeatedObjectsPerformsAcceptablyWithInMemoryMappingCache
+{
+    RKManagedObjectStore *managedObjectStore = [RKTestFactory managedObjectStore];
+    RKInMemoryManagedObjectCache *managedObjectCache = [[RKInMemoryManagedObjectCache alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext];
+    RKManagedObjectMappingOperationDataSource *mappingOperationDataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
+                                                                                                                                                      cache:managedObjectCache];
+    managedObjectStore.managedObjectCache = managedObjectCache;
+
+    RKEntityMapping *childMapping = [RKEntityMapping mappingForEntityForName:@"Child" inManagedObjectStore:managedObjectStore];
+    childMapping.identificationAttributes = @[ @"childID" ];
+    [childMapping addAttributeMappingsFromArray:@[@"name", @"childID"]];
+
+    RKEntityMapping *parentMapping = [RKEntityMapping mappingForEntityForName:@"Parent" inManagedObjectStore:managedObjectStore];
+    [parentMapping addAttributeMappingsFromArray:@[@"parentID", @"name"]];
+    parentMapping.identificationAttributes = @[ @"parentID" ];
+    [parentMapping addRelationshipMappingWithSourceKeyPath:@"children" mapping:childMapping];
+
+    NSDictionary *mappingsDictionary = @{ @"parents": parentMapping };
+    NSDictionary *JSON = [RKTestFixture parsedObjectWithContentsOfFixture:@"benchmark_parents_and_children.json"];
+    RKMapperOperation *mapper = [[RKMapperOperation alloc] initWithRepresentation:JSON mappingsDictionary:mappingsDictionary];
+    mapper.mappingOperationDataSource = mappingOperationDataSource;
+    RKLogConfigureByName("RestKit/ObjectMapping", RKLogLevelOff);
+    RKLogConfigureByName("RestKit/CoreData", RKLogLevelOff);
+
+    [RKBenchmark report:@"Mapping with In Memory Cache" executionBlock:^{
+        for (NSUInteger i = 0; i < 50; i++) {
+            [mapper start];
+        }
+    }];
+    NSUInteger parentCount = [managedObjectStore.persistentStoreManagedObjectContext countForEntityForName:@"Parent" predicate:nil error:nil];
+    NSUInteger childrenCount = [managedObjectStore.persistentStoreManagedObjectContext countForEntityForName:@"Child" predicate:nil error:nil];
+    assertThatInteger(parentCount, is(equalToInteger(25)));
+    assertThatInteger(childrenCount, is(equalToInteger(51)));
+}
+
+- (void)testMappingIdentificationAttributesFromElementsOnAnArray
+{
+    NSDictionary *representation = @{
+        @"userSessions": @{
+            @"name": @"Mr. User",
+            @"identification": @54321,
+            @"catIDs": @[ @"418", @"419", @"431",@"441", @"457", @"486", @"504" ]
+        }
+    };
+    RKManagedObjectStore *managedObjectStore = [RKTestFactory managedObjectStore];
+    RKFetchRequestManagedObjectCache *managedObjectCache = [RKFetchRequestManagedObjectCache new];
+    RKManagedObjectMappingOperationDataSource *mappingOperationDataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
+                                                                                                                                                      cache:managedObjectCache];
+    RKEntityMapping *catMapping = [RKEntityMapping mappingForEntityForName:@"Cat" inManagedObjectStore:managedObjectStore];
+    catMapping.identificationAttributes = @[ @"railsID" ];
+    [catMapping addPropertyMapping:[RKAttributeMapping attributeMappingFromKeyPath:nil toKeyPath:@"railsID"]];
+     
+    RKEntityMapping *humanMapping = [RKEntityMapping mappingForEntityForName:@"Human" inManagedObjectStore:managedObjectStore];
+    [humanMapping addPropertyMapping:[RKAttributeMapping attributeMappingFromKeyPath:@"identification" toKeyPath:@"railsID"]];
+    [humanMapping setIdentificationAttributes:@[ @"railsID" ]];
+    [humanMapping addPropertyMapping:[RKRelationshipMapping relationshipMappingFromKeyPath:@"catIDs" toKeyPath:@"cats" withMapping:catMapping]];
+    
+    RKMapperOperation *mapper = [[RKMapperOperation alloc] initWithRepresentation:representation mappingsDictionary:@{ @"userSessions": humanMapping }];
+    mapper.mappingOperationDataSource = mappingOperationDataSource;
+    [mapper start];
+    
+    RKHuman *human = [mapper.mappingResult firstObject];
+    expect(human).notTo.beNil();
+    expect(human.railsID).to.equal(@54321);
+    expect(human.cats).to.haveCountOf(7);
+    NSSet *expectedIDs = [NSSet setWithArray:@[ @418, @419, @431, @441, @457, @486, @504 ]];
+    expect([human.cats valueForKey:@"railsID"]).to.equal(expectedIDs);
+}
+
+- (void)testMappingIdentificationAttributesFromElementsOnAnArrayDoesNotDuplicateManagedObjects
+{
+    NSDictionary *representation = @{ @"userSessions": @{ @"name": @"Mr. User",
+                                                          @"identification": @54321,
+                                                          @"catIDs": @[ @"418", @"419", @"431",@"441", @"457", @"486", @"504" ] } };
+    RKManagedObjectStore *managedObjectStore = [RKTestFactory managedObjectStore];
+    RKFetchRequestManagedObjectCache *managedObjectCache = [RKFetchRequestManagedObjectCache new];
+    RKManagedObjectMappingOperationDataSource *mappingOperationDataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
+                                                                                                                                                      cache:managedObjectCache];
+
+    NSManagedObject *cat1 = [NSEntityDescription insertNewObjectForEntityForName:@"Cat" inManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext];
+    [cat1 setValue:@(418) forKey:@"railsID"];
+    NSManagedObject *cat2 = [NSEntityDescription insertNewObjectForEntityForName:@"Cat" inManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext];
+    [cat2 setValue:@(419) forKey:@"railsID"];
+
+    RKEntityMapping *catMapping = [RKEntityMapping mappingForEntityForName:@"Cat" inManagedObjectStore:managedObjectStore];
+    catMapping.identificationAttributes = @[ @"railsID" ];
+    [catMapping addPropertyMapping:[RKAttributeMapping attributeMappingFromKeyPath:nil toKeyPath:@"railsID"]];
+
+    RKEntityMapping *humanMapping = [RKEntityMapping mappingForEntityForName:@"Human" inManagedObjectStore:managedObjectStore];
+    [humanMapping addPropertyMapping:[RKAttributeMapping attributeMappingFromKeyPath:@"identification" toKeyPath:@"railsID"]];
+    [humanMapping setIdentificationAttributes:@[ @"railsID" ]];
+    [humanMapping addPropertyMapping:[RKRelationshipMapping relationshipMappingFromKeyPath:@"catIDs" toKeyPath:@"cats" withMapping:catMapping]];
+
+    RKMapperOperation *mapper = [[RKMapperOperation alloc] initWithRepresentation:representation mappingsDictionary:@{ @"userSessions": humanMapping }];
+    mapper.mappingOperationDataSource = mappingOperationDataSource;
+    [mapper start];
+
+    NSFetchRequest *fetchRequest = [NSFetchRequest fetchRequestWithEntityName:@"Cat"];
+    [fetchRequest setSortDescriptors:@[[NSSortDescriptor sortDescriptorWithKey:@"railsID" ascending:YES]]];
+
+    NSPredicate *catOnePredicate  = [NSPredicate predicateWithFormat:@"railsID == 418"];
+    [fetchRequest setPredicate:catOnePredicate];
+    NSArray *catsWithID418 = [managedObjectStore.persistentStoreManagedObjectContext executeFetchRequest:fetchRequest error:NULL];
+
+    NSPredicate *catTwoPredicate = [NSPredicate predicateWithFormat:@"railsID == 419"];
+    [fetchRequest setPredicate:catTwoPredicate];
+    NSArray *catsWithID419 = [managedObjectStore.persistentStoreManagedObjectContext executeFetchRequest:fetchRequest error:NULL];
+
+    expect(catsWithID418).to.haveCountOf(1);
+    expect(catsWithID419).to.haveCountOf(1);
+}
+
+- (void)testManagedObjectsMappedWithRequiredRelationshipsThatAreSetByConnectionsAreNotPrematurelyDeleted
+{
+    RKManagedObjectStore *managedObjectStore = [RKTestFactory managedObjectStore];
+    RKFetchRequestManagedObjectCache *managedObjectCache = [RKFetchRequestManagedObjectCache new];
+    RKManagedObjectMappingOperationDataSource *mappingOperationDataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
+                                                                                                                                                      cache:managedObjectCache];
+    mappingOperationDataSource.operationQueue = [NSOperationQueue new];
+    
+    NSManagedObject *cat = [NSEntityDescription insertNewObjectForEntityForName:@"Cat" inManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext];
+    [cat setValue:@(12345) forKey:@"railsID"];
+    
+    NSDictionary *representation = @{ @"name": @"Blake Watters", @"requiredCatID": @(12345) };
+    RKEntityMapping *catMapping = [RKEntityMapping mappingForEntityForName:@"Cat" inManagedObjectStore:managedObjectStore];
+    catMapping.identificationAttributes = @[ @"railsID" ];
+    
+    RKEntityMapping *strictHumanMapping = [RKEntityMapping mappingForEntityForName:@"StrictHuman" inManagedObjectStore:managedObjectStore];
+    [strictHumanMapping addAttributeMappingsFromDictionary:@{ @"name": @"name" }];
+    [strictHumanMapping addPropertyMapping:[RKAttributeMapping attributeMappingFromKeyPath:@"requiredCatID" toKeyPath:@"favoriteCatID"]];
+    [strictHumanMapping addConnectionForRelationship:@"requiredCat" connectedBy:@{ @"favoriteCatID": @"railsID" }];
+    
+    RKMapperOperation *mapper = [[RKMapperOperation alloc] initWithRepresentation:representation mappingsDictionary:@{ [NSNull null]: strictHumanMapping }];
+    mapper.mappingOperationDataSource = mappingOperationDataSource;
+    [mapper start];
+    [mappingOperationDataSource.operationQueue waitUntilAllOperationsAreFinished];
+    
+    RKHuman *blake = [mapper.mappingResult firstObject];
+    expect(blake.name).to.equal(@"Blake Watters");
+    expect(blake.managedObjectContext).notTo.beNil();
+    expect([blake isDeleted]).to.beFalsy();
+    expect([blake valueForKey:@"requiredCat"]).to.equal(cat);
+}
+
+- (void)testManagedObjectsMappedWithRelationshipsThatAreSetByConnectionsWithInMemoryCache
+{
+    RKManagedObjectStore *managedObjectStore = [RKTestFactory managedObjectStore];
+    RKInMemoryManagedObjectCache *managedObjectCache = [[RKInMemoryManagedObjectCache alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext];
+    RKManagedObjectMappingOperationDataSource *mappingOperationDataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
+                                                                                                                                                      cache:managedObjectCache];
+    mappingOperationDataSource.operationQueue = [NSOperationQueue new];
+
+    NSDictionary *representation = @{ @"human": @{ @"name": @"Blake Watters", @"favoriteCatID": @(12345) }, @"cat": @{ @"railsID": @(12345) } };
+    RKEntityMapping *catMapping = [RKEntityMapping mappingForEntityForName:@"Cat"
+                                                      inManagedObjectStore:managedObjectStore];
+    catMapping.identificationAttributes = @[ @"railsID" ];
+    [catMapping addAttributeMappingsFromDictionary:@{ @"railsID": @"railsID" }];
+
+    RKEntityMapping *humanMapping = [RKEntityMapping mappingForEntityForName:@"Human"
+                                                        inManagedObjectStore:managedObjectStore];
+    [humanMapping addAttributeMappingsFromDictionary:@{ @"name": @"name" }];
+    [humanMapping addPropertyMapping:[RKAttributeMapping attributeMappingFromKeyPath:@"favoriteCatID" toKeyPath:@"favoriteCatID"]];
+    [humanMapping addConnectionForRelationship:@"favoriteCat" connectedBy:@{ @"favoriteCatID": @"railsID" }];
+    RKMapperOperation *mapper = [[RKMapperOperation alloc] initWithRepresentation:representation
+                                                               mappingsDictionary:@{ @"human": humanMapping , @"cat": catMapping }];
+    mapper.mappingOperationDataSource = mappingOperationDataSource;
+    mappingOperationDataSource.parentOperation = mapper;
+    [mapper start];
+
+    [mappingOperationDataSource.operationQueue waitUntilAllOperationsAreFinished];
+
+    RKCat *cat = [mapper.mappingResult.dictionary objectForKey:@"cat"];
+    expect(cat.railsID).to.equal(12345);
+    expect(cat.managedObjectContext).notTo.beNil();
+
+    RKHuman *blake = [mapper.mappingResult.dictionary objectForKey:@"human"];
+    expect(blake.name).to.equal(@"Blake Watters");
+    expect(blake.managedObjectContext).notTo.beNil();
+    expect([blake isDeleted]).to.beFalsy();
+    expect([blake valueForKey:@"favoriteCat"]).notTo.beNil();
+    expect([blake valueForKey:@"favoriteCat"]).to.equal([mapper.mappingResult.dictionary objectForKey:@"cat"]);
+}
+
+- (void)testDeletionOperationAfterManagedObjectContextIsDeallocated
+{
+    RKManagedObjectStore *managedObjectStore = [RKTestFactory managedObjectStore];
+    NSManagedObjectContext *managedObjectContext = [managedObjectStore newChildManagedObjectContextWithConcurrencyType:NSPrivateQueueConcurrencyType];
+    RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectContext cache:nil];
+    
+    
+    NSDictionary *representation = @{ @"human": @{ @"name": @"Blake Watters", @"favoriteCatID": @(12345) }, @"cat": @{ @"railsID": @(12345) } };
+    RKEntityMapping *catMapping = [RKEntityMapping mappingForEntityForName:@"Cat"
+                                                      inManagedObjectStore:managedObjectStore];
+    catMapping.discardsInvalidObjectsOnInsert = YES;
+    RKCat *cat = [NSEntityDescription insertNewObjectForEntityForName:@"Cat" inManagedObjectContext:managedObjectContext];
+    RKMappingOperation *mappingOperation = [[RKMappingOperation alloc] initWithSourceObject:representation destinationObject:cat mapping:catMapping];
+    NSOperationQueue *operationQueue = [NSOperationQueue new];
+    [operationQueue setSuspended:YES];
+    dataSource.operationQueue = operationQueue;
+    
+    id mockOperation = [OCMockObject partialMockForObject:mappingOperation];
+    [[[mockOperation stub] andReturn:catMapping] objectMapping];
+    [dataSource commitChangesForMappingOperation:mockOperation error:nil];
+    
+    expect([operationQueue operationCount]).to.equal(1);
+    dataSource = nil;
+    managedObjectContext = nil;
+    [operationQueue setSuspended:NO];
+    
+    [operationQueue waitUntilAllOperationsAreFinished];
+    // Create a operation queue
+    // Create data source
+    
+}
+
+- (void)testThatMappingRequiredHasManyRelationshipDoesNotCrash
+{
+    RKManagedObjectStore *managedObjectStore = [RKTestFactory managedObjectStore];
+    RKFetchRequestManagedObjectCache *managedObjectCache = [RKFetchRequestManagedObjectCache new];
+    RKManagedObjectMappingOperationDataSource *mappingOperationDataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.persistentStoreManagedObjectContext
+                                                                                                                                                      cache:managedObjectCache];
+    mappingOperationDataSource.operationQueue = [NSOperationQueue new];
+
+    NSDictionary *representation = @{ @"name": @"Blake Watters", @"railsID": @123, @"hoardedCats": @[ @{ @"name": @"Asia", @"railsID": @12345 }] };
+    RKEntityMapping *catHoarderMapping = [RKEntityMapping mappingForEntityForName:@"CatHoarder" inManagedObjectStore:managedObjectStore];
+    [catHoarderMapping addAttributeMappingsFromArray:@[ @"name", @"railsID" ]];
+    RKEntityMapping *catMapping = [RKEntityMapping mappingForEntityForName:@"HoardedCat" inManagedObjectStore:managedObjectStore];
+    [catMapping addAttributeMappingsFromArray:@[ @"name", @"railsID" ]];
+    catMapping.identificationAttributes = @[ @"railsID" ];
+    [catHoarderMapping addRelationshipMappingWithSourceKeyPath:@"hoardedCats" mapping:catMapping];
+
+    RKMapperOperation *mapper = [[RKMapperOperation alloc] initWithRepresentation:representation mappingsDictionary:@{ [NSNull null]: catHoarderMapping }];
+    mapper.mappingOperationDataSource = mappingOperationDataSource;
+    mappingOperationDataSource.parentOperation = mapper;
+    [mapper start];
+    [mappingOperationDataSource.operationQueue waitUntilAllOperationsAreFinished];
+
+    NSManagedObject *catHoarder = [mapper.mappingResult firstObject];
+    expect(catHoarder).notTo.beNil();
+    expect([catHoarder valueForKeyPath:@"hoardedCats"]).to.haveCountOf(1);
+}
 
 @end

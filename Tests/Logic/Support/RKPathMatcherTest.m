@@ -87,7 +87,7 @@
     NSDictionary *person = [NSDictionary dictionaryWithObjectsAndKeys:
                             @"CuddleGuts", @"name", [NSNumber numberWithInt:6], @"age", nil];
     RKPathMatcher *matcher = [RKPathMatcher pathMatcherWithPattern:@"/people/:name/:age"];
-    NSString *interpolatedPath = [matcher pathFromObject:person addingEscapes:YES];
+    NSString *interpolatedPath = [matcher pathFromObject:person addingEscapes:YES interpolatedParameters:nil];
     expect(interpolatedPath).notTo.beNil();
     NSString *expectedPath = @"/people/CuddleGuts/6";
     expect(interpolatedPath).to.equal(expectedPath);
@@ -98,7 +98,7 @@
     NSDictionary *person = [NSDictionary dictionaryWithObjectsAndKeys:
                             @"JUICE|BOX&121", @"password", @"Joe Bob Briggs", @"name", [NSNumber numberWithInt:15], @"group", nil];
     RKPathMatcher *matcher = [RKPathMatcher pathMatcherWithPattern:@"/people/:group/:name?password=:password"];
-    NSString *interpolatedPath = [matcher pathFromObject:person addingEscapes:YES];
+    NSString *interpolatedPath = [matcher pathFromObject:person addingEscapes:YES interpolatedParameters:nil];
     expect(interpolatedPath).notTo.beNil();
     NSString *expectedPath = @"/people/15/Joe%20Bob%20Briggs?password=JUICE%7CBOX%26121";
     expect(interpolatedPath).to.equal(expectedPath);
@@ -109,7 +109,7 @@
     NSDictionary *person = [NSDictionary dictionaryWithObjectsAndKeys:
                             @"JUICE|BOX&121", @"password", @"Joe Bob Briggs", @"name", [NSNumber numberWithInt:15], @"group", nil];
     RKPathMatcher *matcher = [RKPathMatcher pathMatcherWithPattern:@"/people/:group/:name?password=:password"];
-    NSString *interpolatedPath = [matcher pathFromObject:person addingEscapes:NO];
+    NSString *interpolatedPath = [matcher pathFromObject:person addingEscapes:NO interpolatedParameters:nil];
     expect(interpolatedPath).notTo.beNil();
     NSString *expectedPath = @"/people/15/Joe Bob Briggs?password=JUICE|BOX&121";
     expect(interpolatedPath).to.equal(expectedPath);
@@ -119,10 +119,20 @@
 {
     NSDictionary *arguments = [NSDictionary dictionaryWithObjectsAndKeys:@"Resources", @"filename", nil];
     RKPathMatcher *matcher = [RKPathMatcher pathMatcherWithPattern:@"/directory/:filename\\.json"];
-    NSString *interpolatedPath = [matcher pathFromObject:arguments addingEscapes:YES];
+    NSString *interpolatedPath = [matcher pathFromObject:arguments addingEscapes:YES interpolatedParameters:nil];
     expect(interpolatedPath).notTo.beNil();
     NSString *expectedPath = @"/directory/Resources.json";
     expect(interpolatedPath).to.equal(expectedPath);
+}
+
+- (void)testThatEscapedParametersAreUnescapedWhenCreatingPathFromObject
+{
+    NSDictionary *arguments = @{ @"name": @"Blake Watters" };
+    RKPathMatcher *matcher = [RKPathMatcher pathMatcherWithPattern:@"/names/:name"];
+    NSDictionary *params = nil;
+    [matcher pathFromObject:arguments addingEscapes:YES interpolatedParameters:&params];
+    expect(params).notTo.beNil();
+    expect([params objectForKey:@"name"]).to.equal(@"Blake Watters");
 }
 
 - (void)testMatchingPathWithTrailingSlashAndQuery
@@ -146,7 +156,7 @@
     expect(matches).to.equal(NO);
     
     pathMatcher = [RKPathMatcher pathMatcherWithPattern:@"/api/:version/organizations/:organizationID"];
-    matches = [pathMatcher matchesPath:@"/api/v1/organizations/1234/" tokenizeQueryStrings:NO parsedArguments:nil];
+    matches = [pathMatcher matchesPath:@"/api/v1/organizations/1234" tokenizeQueryStrings:NO parsedArguments:nil];
     expect(matches).to.equal(YES);
 }
 
@@ -164,6 +174,23 @@
     RKPathMatcher *pathMatcher = [RKPathMatcher pathMatcherWithPattern:@"/api/v1/organizations/"];
     BOOL match = [pathMatcher matchesPath:@"/api/v1/organizations/?client_search=s" tokenizeQueryStrings:YES parsedArguments:&argsDictionary];
     expect(match).to.beTruthy();
+}
+
+- (void)testThatMatchingPathPatternsDoesNotMatchPathsShorterThanTheInput
+{
+    NSString *path = @"/categories/some-category-name/articles/the-article-name";
+    
+    RKPathMatcher *pathMatcher1 = [RKPathMatcher pathMatcherWithPattern:@"/categories"];
+    BOOL matches = [pathMatcher1 matchesPath:path tokenizeQueryStrings:NO parsedArguments:nil];
+    expect(matches).to.equal(NO);
+    
+    RKPathMatcher *pathMatcher2 = [RKPathMatcher pathMatcherWithPattern:@"/categories/:categoryName"];
+    matches = [pathMatcher2 matchesPath:path tokenizeQueryStrings:NO parsedArguments:nil];
+    expect(matches).to.equal(NO);
+    
+    RKPathMatcher *pathMatcher3 = [RKPathMatcher pathMatcherWithPattern:@"/categories/:categorySlug/articles/:articleSlug"];
+    matches = [pathMatcher3 matchesPath:path tokenizeQueryStrings:NO parsedArguments:nil];
+    expect(matches).to.equal(YES);
 }
 
 @end

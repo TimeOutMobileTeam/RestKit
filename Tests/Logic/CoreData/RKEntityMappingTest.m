@@ -124,6 +124,40 @@
     assertThat([propertyNamesAndTypes objectForKey:@"favoriteColors"][RKPropertyInspectionKeyValueCodingClassKey], is(notNilValue()));
 }
 
+- (void)testMappingAnArrayToATransformableWithoutABackingManagedObjectSubclass
+{
+    NSManagedObjectModel *model = [NSManagedObjectModel new];
+    NSEntityDescription *entity = [NSEntityDescription new];
+    [entity setName:@"TransformableEntity"];
+    NSAttributeDescription *transformableAttribute = [NSAttributeDescription new];
+    [transformableAttribute setName:@"transformableURLs"];
+    [transformableAttribute setAttributeType:NSTransformableAttributeType];
+    [entity setProperties:@[ transformableAttribute ]];
+    [model setEntities:@[ entity ]];
+    
+    RKEntityMapping *entityMapping = [[RKEntityMapping alloc] initWithEntity:entity];
+    [entityMapping addAttributeMappingsFromDictionary:@{ @"URLs": @"transformableURLs" }];
+    
+    NSArray *URLs = @[ @"http://restkit.org", @"http://gateguruapp.com" ];
+    NSDictionary *representation = @{ @"URLs": URLs };
+    
+    NSError *error = nil;
+    RKManagedObjectStore *managedObjectStore = [[RKManagedObjectStore alloc] initWithManagedObjectModel:model];
+    [managedObjectStore createPersistentStoreCoordinator];
+    [managedObjectStore addInMemoryPersistentStore:&error];
+    [managedObjectStore createManagedObjectContexts];
+    
+    RKMappingOperation *operation = [[RKMappingOperation alloc] initWithSourceObject:representation destinationObject:nil mapping:entityMapping];
+    RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.mainQueueManagedObjectContext cache:nil];
+    operation.dataSource = dataSource;
+    BOOL success = [operation performMapping:&error];
+    expect(success).to.equal(YES);
+    expect(operation.destinationObject).notTo.beNil();
+    
+    NSArray *mappedURLs = [operation.destinationObject valueForKey:@"transformableURLs"];
+    expect(mappedURLs).to.equal(URLs);
+}
+
 - (void)testThatMappingAnEmptyArrayOnToAnExistingRelationshipDisassociatesTheRelatedObjects
 {
     RKHuman *blake = [RKTestFactory insertManagedObjectForEntityForName:@"Human" inManagedObjectContext:nil withProperties:@{ @"name": @"Blake" }];
@@ -538,6 +572,37 @@
     expect(identificationAttributes).notTo.beNil();
     NSArray *attributeNames = @[ @"name" ];
     expect([identificationAttributes valueForKey:@"name"]).to.equal(attributeNames);
+}
+
+- (void)testInvokingRequestMappingRaisesHelpfulException
+{
+    NSException *caughtException = nil;
+    @try {
+        [RKEntityMapping requestMapping];
+    }
+    @catch (NSException *exception) {
+        caughtException = exception;
+    }
+    expect(caughtException).notTo.beNil();
+    expect(caughtException.reason).to.equal(@"`requestMapping` is not meant to be invoked on `RKEntityMapping`. You probably want to invoke `[RKObjectMapping requestMapping]`.");
+}
+
+- (void)testMappingArrayToMutableArray
+{
+    RKManagedObjectStore *managedObjectStore = [RKTestFactory managedObjectStore];
+    RKObjectMapping *mapping = [RKEntityMapping mappingForEntityForName:@"Human" inManagedObjectStore:managedObjectStore];
+    [mapping addAttributeMappingsFromDictionary:@{ @"favoriteColors": @"mutableFavoriteColors" }];
+    
+    NSDictionary *dictionary = @{ @"favoriteColors": @[ @"Blue", @"Red" ] };
+    RKHuman *human = [NSEntityDescription insertNewObjectForEntityForName:@"Human" inManagedObjectContext:managedObjectStore.mainQueueManagedObjectContext];
+    RKMappingOperation *operation = [[RKMappingOperation alloc] initWithSourceObject:dictionary destinationObject:human mapping:mapping];
+    RKManagedObjectMappingOperationDataSource *dataSource = [[RKManagedObjectMappingOperationDataSource alloc] initWithManagedObjectContext:managedObjectStore.mainQueueManagedObjectContext cache:nil];
+    operation.dataSource = dataSource;
+    NSError *error = nil;
+    [operation performMapping:&error];
+    
+    assertThat(human.mutableFavoriteColors, is(equalTo(@[ @"Blue", @"Red" ])));
+    assertThat(human.mutableFavoriteColors, is(instanceOf([NSMutableArray class])));
 }
 
 @end
